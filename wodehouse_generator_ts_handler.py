@@ -39,9 +39,6 @@ class TransformersClassifierHandler(BaseHandler, ABC):
         self.initialized = True
 
     def preprocess(self, data):
-        """ Very basic preprocessing code - only tokenizes. 
-            Extend with your own preprocessing steps as needed.
-        """
         text = data[0].get("data")
         if text is None:
             text = data[0].get("body")
@@ -55,18 +52,11 @@ class TransformersClassifierHandler(BaseHandler, ABC):
         )
         return inputs
 
+
     def inference(self, inputs):
         """
-        Predict the class of a text using a trained transformer model.
+        Generate text using a trained transformer model.
         """
-        # NOTE: This makes the assumption that your model expects text to be tokenized  
-        # with "input_ids" and "token_type_ids" - which is true for some popular transformer models, e.g. bert.
-        # If your transformer model expects different tokenization, adapt this code to suit 
-        # its expected input format.
-        # prediction = self.model(
-        #     inputs['input_ids'].to(self.device),
-        #     token_type_ids=inputs['token_type_ids'].to(self.device)
-        # )[0].argmax().item()
         logger.info("inputs: '%s'", inputs)
 
         prediction = self.model.to(self.device).generate(
@@ -78,15 +68,13 @@ class TransformersClassifierHandler(BaseHandler, ABC):
             top_p=1.0,
             repetition_penalty=None,
             num_return_sequences=3,
-        ) #[0].argmax().item()
+        )
 
         logger.info("Model predicted shape: '%s'", prediction.shape)
-
         return prediction
 
-    def postprocess(self, inference_output):
 
-        logger.info("inference_output: %s", inference_output)
+    def postprocess(self, inference_output):
 
         if len(inference_output.shape) > 2:
                 inference_output.squeeze_()
@@ -94,19 +82,13 @@ class TransformersClassifierHandler(BaseHandler, ABC):
         generated_sequences = []
 
         for generated_sequence_idx, generated_sequence in enumerate(inference_output):
-            print("=== GENERATED SEQUENCE {} ===".format(generated_sequence_idx + 1))
             generated_sequence = generated_sequence.tolist()
-
             # Decode text
             text = self.tokenizer.decode(generated_sequence, clean_up_tokenization_spaces=True)
-
             generated_sequences.append(text)
-            #print(text)
 
+        # Hack to return multiple sequences: return a single list of lists.
         return [generated_sequences]
-
-
-        # return inference_output
 
 
 _service = TransformersClassifierHandler()
